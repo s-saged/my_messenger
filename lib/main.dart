@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -10,14 +11,29 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const CyberMessengerApp());
+
+  // فحص هل البيانات محفوظة محلياً قبل فتح التطبيق
+  final prefs = await SharedPreferences.getInstance();
+  final savedId = prefs.getString('saved_user_id');
+  final savedName = prefs.getString('saved_user_name');
+
+  runApp(CyberMessengerApp(
+    initialId: savedId,
+    initialName: savedName,
+  ));
 }
 
 class CyberMessengerApp extends StatelessWidget {
-  const CyberMessengerApp({super.key});
+  final String? initialId;
+  final String? initialName;
+
+  const CyberMessengerApp({super.key, this.initialId, this.initialName});
 
   @override
   Widget build(BuildContext context) {
+    // لو البيانات متسجلة يدخل مباشرة على الصفحة الرئيسية
+    final bool isLoggedIn = initialId != null && initialName != null;
+
     return MaterialApp(
       title: 'Cyber Messenger',
       debugShowCheckedModeBanner: false,
@@ -29,7 +45,9 @@ class CyberMessengerApp extends StatelessWidget {
           surface: Color(0xFF131C2E),
         ),
       ),
-      home: const IdentitySetupScreen(),
+      home: isLoggedIn
+          ? HomeScreen(myId: initialId!, myName: initialName!)
+          : const IdentitySetupScreen(),
     );
   }
 }
@@ -52,10 +70,9 @@ class _IdentitySetupScreenState extends State<IdentitySetupScreen> {
     _generateRandomId();
   }
 
-  // دالة لتوليد ID عشوائي فريد
   void _generateRandomId() {
     final random = Random();
-    final randomNum = 1000 + random.nextInt(9000); // رقم عشوائي من 4 خانات
+    final randomNum = 1000 + random.nextInt(9000);
     setState(() {
       _generatedId = 'user_$randomNum';
     });
@@ -71,11 +88,17 @@ class _IdentitySetupScreenState extends State<IdentitySetupScreen> {
       return;
     }
 
+    // 1. حفظ البيانات في Firebase Firestore
     await FirebaseFirestore.instance.collection('users').doc(_generatedId).set({
       'name': name,
       'userId': _generatedId,
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    // 2. حفظ البيانات محلياً على الموبايل لمنع طلبها مرة أخرى عند إعادة فتح التطبيق
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_user_id', _generatedId);
+    await prefs.setString('saved_user_name', name);
 
     if (!mounted) return;
 
@@ -135,14 +158,12 @@ class _IdentitySetupScreenState extends State<IdentitySetupScreen> {
                   style: TextStyle(color: Colors.white54, fontSize: 13),
                 ),
                 const SizedBox(height: 32),
-                // حقل الاسم
                 TextField(
                   controller: _nameController,
                   style: const TextStyle(color: Colors.white),
                   decoration: _customInputDecoration('اكتب اسمك هنا...', Icons.person),
                 ),
                 const SizedBox(height: 16),
-                // عرض الـ ID المولد تلقائياً
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
@@ -342,6 +363,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // تسجيل الخروج لو أحببت في أي وقت مسح الجلسة
+  void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const IdentitySetupScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -373,6 +405,11 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.person_add_alt_1, color: Color(0xFF06B6D4)),
             onPressed: _showAddFriendDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
+            tooltip: 'تسجيل الخروج',
+            onPressed: _logout,
           ),
         ],
       ),
