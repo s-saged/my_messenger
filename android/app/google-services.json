@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "784165946947",
+    "project_id": "massager-82b04",
+    "storage_bucket": "massager-82b04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:784165946947:android:546e53506bd71ecbbbf6f6",
+        "android_client_info": {
+          "package_name": "com.example.my_messenger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqTg2JIXKlHCd0TiEl_SQGqOPXPro2Lp4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
